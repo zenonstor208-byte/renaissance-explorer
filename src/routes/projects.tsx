@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageHeader } from "@/components/AppShell";
-import { Loader2, CheckCircle2, Eye, Plus } from "lucide-react";
+import { Loader2, CheckCircle2, Eye, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -26,6 +36,7 @@ import {
   newId,
   useClients,
   useProjects,
+  type Project,
   type ProjectStatus,
 } from "@/lib/data";
 import { can, useCompany } from "@/lib/company";
@@ -66,103 +77,161 @@ function Projects() {
   const [projects, setProjects] = useProjects();
   const [clients] = useClients();
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const { company } = useCompany();
   const canEdit = can(company.role, "edit");
+
+  const startAdd = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setOpen(true);
+  };
+
+  const startEdit = (p: Project) => {
+    setEditingId(p.id);
+    setForm({
+      name: p.name,
+      client: p.client,
+      status: p.status,
+      progress: String(p.progress),
+    });
+    setOpen(true);
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
     const progress = Math.min(100, Math.max(0, Number(form.progress) || 0));
-    setProjects((p) => [
-      ...p,
-      { id: newId(), name: form.name.trim(), client: form.client.trim(), status: form.status, progress },
-    ]);
+    if (editingId) {
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === editingId
+            ? { ...p, name: form.name.trim(), client: form.client.trim(), status: form.status, progress }
+            : p,
+        ),
+      );
+      toast.success("تم تحديث المشروع");
+    } else {
+      setProjects((prev) => [
+        ...prev,
+        { id: newId(), name: form.name.trim(), client: form.client.trim(), status: form.status, progress },
+      ]);
+      toast.success("تمت إضافة المشروع");
+    }
     setForm(emptyForm);
+    setEditingId(null);
     setOpen(false);
-    toast.success("تمت إضافة المشروع");
   };
+
+  const confirmDelete = (id: string) => setDeleteId(id);
+
+  const doDelete = () => {
+    if (!deleteId) return;
+    setProjects((prev) => prev.filter((p) => p.id !== deleteId));
+    setDeleteId(null);
+    toast.success("تم حذف المشروع");
+  };
+
+  const deletingProject = projects.find((p) => p.id === deleteId);
 
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader title="المشاريع" subtitle="نظرة سريعة على حالة كل مشروع ونسبة الإنجاز." />
         {canEdit ? (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-1.5">
-                <Plus size={16} /> مشروع جديد
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>إضافة مشروع</DialogTitle>
-              </DialogHeader>
-              <form className="space-y-4" onSubmit={submit}>
-                <div className="space-y-2">
-                  <Label htmlFor="p-name">اسم المشروع</Label>
-                  <Input
-                    id="p-name"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="p-client">الزبون</Label>
-                  <Input
-                    id="p-client"
-                    list="clients-list"
-                    value={form.client}
-                    onChange={(e) => setForm({ ...form, client: e.target.value })}
-                  />
-                  <datalist id="clients-list">
-                    {clients.map((c) => (
-                      <option key={c.id} value={c.name} />
-                    ))}
-                  </datalist>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>الحالة</Label>
-                    <Select
-                      value={form.status}
-                      onValueChange={(v) => setForm({ ...form, status: v as ProjectStatus })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PROJECT_STATUSES.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="p-progress">نسبة الإنجاز %</Label>
-                    <Input
-                      id="p-progress"
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={form.progress}
-                      onChange={(e) => setForm({ ...form, progress: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit" className="w-full">
-                    حفظ المشروع
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button className="gap-1.5" onClick={startAdd}>
+            <Plus size={16} /> مشروع جديد
+          </Button>
         ) : null}
       </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingId ? "تعديل مشروع" : "إضافة مشروع"}</DialogTitle>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={submit}>
+            <div className="space-y-2">
+              <Label htmlFor="p-name">اسم المشروع</Label>
+              <Input
+                id="p-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="p-client">الزبون</Label>
+              <Input
+                id="p-client"
+                list="clients-list"
+                value={form.client}
+                onChange={(e) => setForm({ ...form, client: e.target.value })}
+              />
+              <datalist id="clients-list">
+                {clients.map((c) => (
+                  <option key={c.id} value={c.name} />
+                ))}
+              </datalist>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>الحالة</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => setForm({ ...form, status: v as ProjectStatus })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROJECT_STATUSES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="p-progress">نسبة الإنجاز %</Label>
+                <Input
+                  id="p-progress"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={form.progress}
+                  onChange={(e) => setForm({ ...form, progress: e.target.value })}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" className="w-full">
+                {editingId ? "حفظ التعديلات" : "حفظ المشروع"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف المشروع "{deletingProject?.name}"؟ لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteId(null)}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={doDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="grid gap-4 md:grid-cols-3">
         {PROJECT_STATUSES.map((status) => {
@@ -190,8 +259,32 @@ function Projects() {
                     key={p.id}
                     className="rounded-xl bg-background/60 p-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
                   >
-                    <p className="font-medium">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{p.client || "—"}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">{p.client || "—"}</p>
+                      </div>
+                      {canEdit ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(p)}
+                            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            aria-label="تعديل"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => confirmDelete(p.id)}
+                            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            aria-label="حذف"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                     <div className="mt-3 h-1.5 w-full rounded-full bg-secondary">
                       <div
                         className={`h-1.5 rounded-full transition-all ${col.bar}`}
