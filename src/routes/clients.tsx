@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Mail, Phone, Building2, CircleCheck, CirclePause, Plus, Pencil, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Mail, Phone, Building2, CircleCheck, CirclePause, Plus, Pencil, Trash2, Search } from "lucide-react";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { newId, useClients, useProjects, type Client } from "@/lib/data";
 import { can, useCompany } from "@/lib/company";
@@ -41,6 +48,24 @@ export const Route = createFileRoute("/clients")({
 
 const emptyForm = { name: "", contact: "", email: "", phone: "", deals: "0", active: true };
 
+function matchesClient(c: Client, query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    c.name.toLowerCase().includes(q) ||
+    c.contact.toLowerCase().includes(q) ||
+    c.email.toLowerCase().includes(q) ||
+    c.phone.toLowerCase().includes(q)
+  );
+}
+
+function matchesDateRange(createdAt: string, from: string, to: string) {
+  const ts = new Date(createdAt).getTime();
+  if (from && ts < new Date(from).setHours(0, 0, 0, 0)) return false;
+  if (to && ts > new Date(to).setHours(23, 59, 59, 999)) return false;
+  return true;
+}
+
 function Clients() {
   const [clients, setClients] = useClients();
   const [projects] = useProjects();
@@ -50,6 +75,27 @@ function Clients() {
   const [form, setForm] = useState(emptyForm);
   const { company } = useCompany();
   const canEdit = can(company.role, "edit");
+
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [dateSort, setDateSort] = useState<"newest" | "oldest">("newest");
+
+  const filteredClients = useMemo(() => {
+    let list = clients.filter((c) => {
+      if (statusFilter === "active" && !c.active) return false;
+      if (statusFilter === "inactive" && c.active) return false;
+      if (!matchesClient(c, query)) return false;
+      if (!matchesDateRange(c.createdAt, fromDate, toDate)) return false;
+      return true;
+    });
+    list = [...list].sort((a, b) => {
+      const diff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return dateSort === "newest" ? diff : -diff;
+    });
+    return list;
+  }, [clients, statusFilter, query, fromDate, toDate, dateSort]);
 
   const startAdd = () => {
     setEditingId(null);
@@ -93,7 +139,7 @@ function Clients() {
     } else {
       setClients((prev) => [
         ...prev,
-        { id: newId(), ...payload, projects: [] },
+        { id: newId(), ...payload, projects: [], createdAt: new Date().toISOString() },
       ]);
       toast.success("تم تسجيل الزبون");
     }
@@ -113,6 +159,15 @@ function Clients() {
 
   const deletingClient = clients.find((c) => c.id === deleteId);
 
+  const hasActiveFilters = query || statusFilter !== "all" || fromDate || toDate || dateSort !== "newest";
+  const clearFilters = () => {
+    setQuery("");
+    setStatusFilter("all");
+    setFromDate("");
+    setToDate("");
+    setDateSort("newest");
+  };
+
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -122,6 +177,64 @@ function Clients() {
             <Plus size={16} /> زبون جديد
           </Button>
         ) : null}
+      </div>
+
+      <div className="mb-5 rounded-2xl border border-border/60 bg-background/60 p-4 backdrop-blur-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+          <div className="flex-1 space-y-2">
+            <Label htmlFor="c-search">البحث</Label>
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="c-search"
+                placeholder="اسم الجهة، مسؤول التواصل، البريد أو الهاتف"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pr-9"
+              />
+            </div>
+          </div>
+          <div className="w-full space-y-2 lg:w-40">
+            <Label htmlFor="c-status">الحالة</Label>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | "active" | "inactive")}>
+              <SelectTrigger id="c-status">
+                <SelectValue placeholder="الكل" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                <SelectItem value="active">نشط</SelectItem>
+                <SelectItem value="inactive">متوقف</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:w-72">
+            <div className="space-y-2">
+              <Label htmlFor="c-from">من</Label>
+              <Input id="c-from" type="date" dir="ltr" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="c-to">إلى</Label>
+              <Input id="c-to" type="date" dir="ltr" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="w-full space-y-2 lg:w-44">
+            <Label htmlFor="c-sort">الترتيب حسب التاريخ</Label>
+            <Select value={dateSort} onValueChange={(v) => setDateSort(v as "newest" | "oldest")}>
+              <SelectTrigger id="c-sort">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">الأحدث أولاً</SelectItem>
+                <SelectItem value="oldest">الأقدم أولاً</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {hasActiveFilters ? (
+            <Button variant="ghost" size="sm" className="mb-0.5" onClick={clearFilters}>
+              مسح التصفية
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -215,7 +328,7 @@ function Clients() {
       </AlertDialog>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {clients.map((c) => {
+        {filteredClients.map((c) => {
           const linked = Array.from(
             new Set([...c.projects, ...projects.filter((p) => p.client === c.name).map((p) => p.name)]),
           );
@@ -257,9 +370,12 @@ function Clients() {
                   <Building2 size={14} />
                   <span>{c.deals} صفقات</span>
                 </li>
+                <li className="text-[11px] text-muted-foreground/80">
+                  تاريخ الإنشاء: {new Date(c.createdAt).toLocaleDateString("ar-SY")}
+                </li>
               </ul>
 
-              <div className="mt-4 flex flex-wrap gap-1.5">
+              <div className="mt-3 flex flex-wrap gap-1.5">
                 {linked.map((p) => (
                   <span key={p} className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
                     {p}

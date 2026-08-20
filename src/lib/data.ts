@@ -8,6 +8,7 @@ export type Project = {
   client: string;
   status: ProjectStatus;
   progress: number;
+  createdAt: string;
 };
 
 export type Client = {
@@ -19,16 +20,17 @@ export type Client = {
   deals: number;
   active: boolean;
   projects: string[];
+  createdAt: string;
 };
 
 export const PROJECT_STATUSES: ProjectStatus[] = ["قيد التنفيذ", "قيد المراجعة", "مكتمل"];
 
 const DEFAULT_PROJECTS: Project[] = [
-  { id: "p1", name: "منصة الأفق", client: "شركة الأفق", status: "قيد التنفيذ", progress: 62 },
-  { id: "p2", name: "تطبيق نهضة", client: "مجموعة نهضة", status: "قيد التنفيذ", progress: 35 },
-  { id: "p3", name: "هوية دار المعمار", client: "دار المعمار", status: "قيد المراجعة", progress: 88 },
-  { id: "p4", name: "موقع تِك لاين", client: "تِك لاين", status: "مكتمل", progress: 100 },
-  { id: "p5", name: "لوحة تقارير", client: "شركة الأفق", status: "مكتمل", progress: 100 },
+  { id: "p1", name: "منصة الأفق", client: "شركة الأفق", status: "قيد التنفيذ", progress: 62, createdAt: "2026-01-15T10:00:00.000Z" },
+  { id: "p2", name: "تطبيق نهضة", client: "مجموعة نهضة", status: "قيد التنفيذ", progress: 35, createdAt: "2026-02-03T09:30:00.000Z" },
+  { id: "p3", name: "هوية دار المعمار", client: "دار المعمار", status: "قيد المراجعة", progress: 88, createdAt: "2026-03-10T14:20:00.000Z" },
+  { id: "p4", name: "موقع تِك لاين", client: "تِك لاين", status: "مكتمل", progress: 100, createdAt: "2026-04-22T11:00:00.000Z" },
+  { id: "p5", name: "لوحة تقارير", client: "شركة الأفق", status: "مكتمل", progress: 100, createdAt: "2026-05-18T08:45:00.000Z" },
 ];
 
 const DEFAULT_CLIENTS: Client[] = [
@@ -41,6 +43,7 @@ const DEFAULT_CLIENTS: Client[] = [
     deals: 6,
     active: true,
     projects: ["منصة الأفق", "لوحة تقارير"],
+    createdAt: "2026-01-10T08:00:00.000Z",
   },
   {
     id: "c2",
@@ -51,6 +54,7 @@ const DEFAULT_CLIENTS: Client[] = [
     deals: 3,
     active: true,
     projects: ["تطبيق نهضة"],
+    createdAt: "2026-02-14T12:00:00.000Z",
   },
   {
     id: "c3",
@@ -61,6 +65,7 @@ const DEFAULT_CLIENTS: Client[] = [
     deals: 2,
     active: false,
     projects: ["هوية دار المعمار"],
+    createdAt: "2026-03-22T15:30:00.000Z",
   },
   {
     id: "c4",
@@ -71,17 +76,25 @@ const DEFAULT_CLIENTS: Client[] = [
     deals: 9,
     active: true,
     projects: ["موقع تِك لاين"],
+    createdAt: "2026-04-05T10:15:00.000Z",
   },
 ];
 
-function useStored<T>(key: string, fallback: T[]) {
+function withCreatedAt<T extends { createdAt?: string }>(item: T): T & { createdAt: string } {
+  return { ...item, createdAt: item.createdAt ?? new Date().toISOString() };
+}
+
+function useStored<T extends { createdAt?: string }>(key: string, fallback: T[]) {
   const [items, setItems] = useState<T[]>(fallback);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(key);
-      if (raw) setItems(JSON.parse(raw) as T[]);
+      if (raw) {
+        const parsed = JSON.parse(raw) as T[];
+        setItems(parsed.map(withCreatedAt));
+      }
     } catch {
       /* ignore */
     }
