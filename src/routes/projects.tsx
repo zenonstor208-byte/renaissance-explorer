@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/AppShell";
-import { Loader2, CheckCircle2, Eye, Plus, Pencil, Trash2 } from "lucide-react";
+import { Loader2, CheckCircle2, Eye, Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -73,6 +72,19 @@ const emptyForm = {
   progress: "0",
 };
 
+function matchesProject(p: Project, query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return p.name.toLowerCase().includes(q) || p.client.toLowerCase().includes(q);
+}
+
+function matchesDateRange(createdAt: string, from: string, to: string) {
+  const ts = new Date(createdAt).getTime();
+  if (from && ts < new Date(from).setHours(0, 0, 0, 0)) return false;
+  if (to && ts > new Date(to).setHours(23, 59, 59, 999)) return false;
+  return true;
+}
+
 function Projects() {
   const [projects, setProjects] = useProjects();
   const [clients] = useClients();
@@ -82,6 +94,26 @@ function Projects() {
   const [form, setForm] = useState(emptyForm);
   const { company } = useCompany();
   const canEdit = can(company.role, "edit");
+
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [dateSort, setDateSort] = useState<"newest" | "oldest">("newest");
+
+  const filteredProjects = useMemo(() => {
+    let list = projects.filter((p) => {
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (!matchesProject(p, query)) return false;
+      if (!matchesDateRange(p.createdAt, fromDate, toDate)) return false;
+      return true;
+    });
+    list = [...list].sort((a, b) => {
+      const diff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return dateSort === "newest" ? diff : -diff;
+    });
+    return list;
+  }, [projects, statusFilter, query, fromDate, toDate, dateSort]);
 
   const startAdd = () => {
     setEditingId(null);
@@ -116,7 +148,14 @@ function Projects() {
     } else {
       setProjects((prev) => [
         ...prev,
-        { id: newId(), name: form.name.trim(), client: form.client.trim(), status: form.status, progress },
+        {
+          id: newId(),
+          name: form.name.trim(),
+          client: form.client.trim(),
+          status: form.status,
+          progress,
+          createdAt: new Date().toISOString(),
+        },
       ]);
       toast.success("تمت إضافة المشروع");
     }
@@ -136,6 +175,15 @@ function Projects() {
 
   const deletingProject = projects.find((p) => p.id === deleteId);
 
+  const hasActiveFilters = query || statusFilter !== "all" || fromDate || toDate || dateSort !== "newest";
+  const clearFilters = () => {
+    setQuery("");
+    setStatusFilter("all");
+    setFromDate("");
+    setToDate("");
+    setDateSort("newest");
+  };
+
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -145,6 +193,67 @@ function Projects() {
             <Plus size={16} /> مشروع جديد
           </Button>
         ) : null}
+      </div>
+
+      <div className="mb-5 rounded-2xl border border-border/60 bg-background/60 p-4 backdrop-blur-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+          <div className="flex-1 space-y-2">
+            <Label htmlFor="p-search">البحث</Label>
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="p-search"
+                placeholder="اسم المشروع أو الزبون"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pr-9"
+              />
+            </div>
+          </div>
+          <div className="w-full space-y-2 lg:w-40">
+            <Label htmlFor="p-status">الحالة</Label>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as ProjectStatus | "all")}>
+              <SelectTrigger id="p-status">
+                <SelectValue placeholder="الكل" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                {PROJECT_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:w-72">
+            <div className="space-y-2">
+              <Label htmlFor="p-from">من</Label>
+              <Input id="p-from" type="date" dir="ltr" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="p-to">إلى</Label>
+              <Input id="p-to" type="date" dir="ltr" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="w-full space-y-2 lg:w-44">
+            <Label htmlFor="p-sort">الترتيب حسب التاريخ</Label>
+            <Select value={dateSort} onValueChange={(v) => setDateSort(v as "newest" | "oldest")}>
+              <SelectTrigger id="p-sort">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">الأحدث أولاً</SelectItem>
+                <SelectItem value="oldest">الأقدم أولاً</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {hasActiveFilters ? (
+            <Button variant="ghost" size="sm" className="mb-0.5" onClick={clearFilters}>
+              مسح التصفية
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -236,7 +345,7 @@ function Projects() {
       <div className="grid gap-4 md:grid-cols-3">
         {PROJECT_STATUSES.map((status) => {
           const col = meta[status];
-          const items = projects
+          const items = filteredProjects
             .filter((p) => p.status === status)
             .sort((a, b) => b.progress - a.progress);
           return (
@@ -263,6 +372,9 @@ function Projects() {
                       <div className="min-w-0 flex-1">
                         <p className="font-medium">{p.name}</p>
                         <p className="text-xs text-muted-foreground">{p.client || "—"}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {new Date(p.createdAt).toLocaleDateString("ar-SY")}
+                        </p>
                       </div>
                       {canEdit ? (
                         <div className="flex items-center gap-1">
