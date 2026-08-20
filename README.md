@@ -1,12 +1,12 @@
-# Renaissance Explorer
+# Renaissance Lite
 
-https://github.com/zenonstor208-byte/renaissance-lite-explorer.git
+Renaissance Lite Manager هو نظام إدارة شركات حديث وخفيف، مصمم ليعرض واجهات فنية معاصرة بدون عمليات معقدة. النظام يحتوي على لوحة تحكم بسيطة مع بطاقات معلومات ورسم بياني ثابت، وصفحة موظفين بجدول خفيف ونموذج إضافة موظف، وصفحة زبائن بجدول وبطاقة عرض، وصفحة مشاريع بقائمة حالات، وصفحة إعدادات لتغيير اسم الشركة والشعار. التصميم يعتمد على Glassmorphism وألوان هادئة وعناصر جاهزة بدون توليد كود كبير، مما يجعل النظام سريع وخفيف جداً على الكريديتس. الهدف هو تقديم تجربة مستخدم حديثة وعصرية تمثل عصر النهضة التقنية بدون أي Backend ثقيل أو ذكاء اصطناعي داخلي.
 
 This project was built with [Lovable](https://lovable.dev).
 
 ## Build with Lovable
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/c418ca74-6b1a-458a-a58b-652a4559e370).
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/057c259f-3ae8-4379-9de8-7a1ce3ccdc63).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
 - **Stay in sync**: every change made in Lovable is committed straight to this repository.
