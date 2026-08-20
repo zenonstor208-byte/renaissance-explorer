@@ -63,25 +63,35 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
+  --background: oklch(0.975 0.012 210);
+  --foreground: oklch(0.24 0.03 240);
+  --card: oklch(1 0 0 / 62%);
+  --card-foreground: oklch(0.24 0.03 240);
+  --popover: oklch(0.99 0.005 210);
+  --popover-foreground: oklch(0.24 0.03 240);
+  --primary: oklch(0.58 0.09 205);
+  --primary-foreground: oklch(0.99 0.005 210);
+  --secondary: oklch(0.93 0.02 200);
+  --secondary-foreground: oklch(0.3 0.03 230);
+  --muted: oklch(0.94 0.012 220);
+  --muted-foreground: oklch(0.52 0.03 235);
+  --accent: oklch(0.86 0.06 175);
+  --accent-foreground: oklch(0.26 0.04 220);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --border: oklch(1 0 0 / 55%);
+  --input: oklch(1 0 0 / 70%);
+  --ring: oklch(0.66 0.08 200);
+  --glass-bg: oklch(1 0 0 / 55%);
+  --glass-border: oklch(1 0 0 / 70%);
+  --shadow-glass: 0 18px 40px -22px oklch(0.4 0.06 235 / 45%);
+  --gradient-canvas: radial-gradient(
+      1200px 600px at 100% 0%,
+      oklch(0.88 0.07 190 / 60%),
+      transparent 60%
+    ),
+    radial-gradient(900px 500px at 0% 100%, oklch(0.89 0.06 280 / 45%), transparent 60%);
+  --font-sans: "Cairo", system-ui, sans-serif;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -139,6 +149,16 @@
 
   body {
     background-color: var(--color-background);
+    background-image: var(--gradient-canvas);
+    background-attachment: fixed;
+    font-family: var(--font-sans);
     color: var(--color-foreground);
   }
+}
+
+@utility glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: blur(18px) saturate(140%);
 }
