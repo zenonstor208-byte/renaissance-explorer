@@ -193,7 +193,7 @@ function Employees() {
           onSubmit={(e) => {
             e.preventDefault();
             if (!form.name.trim()) return;
-            setRows((p) => [...p, form]);
+            setRows((p) => [...p, { ...form, createdAt: new Date().toISOString() }]);
             setForm({ name: "", role: "", dept: "" });
           }}
         >
