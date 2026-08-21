@@ -14,13 +14,163 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          active: boolean
+          company_id: string
+          contact: string
+          created_at: string
+          deals: number
+          email: string
+          id: string
+          name: string
+          phone: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          contact?: string
+          created_at?: string
+          deals?: number
+          email?: string
+          id?: string
+          name: string
+          phone?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          contact?: string
+          created_at?: string
+          deals?: number
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          accent: string
+          backdrop: string
+          created_at: string
+          id: string
+          logo: string
+          name: string
+        }
+        Insert: {
+          accent?: string
+          backdrop?: string
+          created_at?: string
+          id?: string
+          logo?: string
+          name: string
+        }
+        Update: {
+          accent?: string
+          backdrop?: string
+          created_at?: string
+          id?: string
+          logo?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          company_id: string
+          created_at: string
+          dept: string
+          email: string
+          full_name: string
+          id: string
+          job_title: string
+          role: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          dept?: string
+          email?: string
+          full_name?: string
+          id: string
+          job_title?: string
+          role?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          dept?: string
+          email?: string
+          full_name?: string
+          id?: string
+          job_title?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          client: string
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          progress: number
+          status: string
+        }
+        Insert: {
+          client?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          progress?: number
+          status?: string
+        }
+        Update: {
+          client?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          progress?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_company_id: { Args: never; Returns: string }
+      is_company_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
