@@ -1,9 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { can, useCompany } from "@/lib/company";
 
 export const Route = createFileRoute("/employees")({
@@ -18,20 +26,67 @@ export const Route = createFileRoute("/employees")({
   component: Employees,
 });
 
-type Employee = { name: string; role: string; dept: string };
+type Employee = { name: string; role: string; dept: string; createdAt: string };
 
 const initial: Employee[] = [
-  { name: "ليان الحسن", role: "مديرة منتج", dept: "المنتج" },
-  { name: "عمر ناصر", role: "مطور واجهات", dept: "التقنية" },
-  { name: "سارة مروان", role: "مصممة تجربة", dept: "التصميم" },
-  { name: "كريم فؤاد", role: "محاسب", dept: "المالية" },
+  { name: "ليان الحسن", role: "مديرة منتج", dept: "المنتج", createdAt: "2026-01-12T09:00:00.000Z" },
+  { name: "عمر ناصر", role: "مطور واجهات", dept: "التقنية", createdAt: "2026-02-20T09:00:00.000Z" },
+  { name: "سارة مروان", role: "مصممة تجربة", dept: "التصميم", createdAt: "2026-03-15T09:00:00.000Z" },
+  { name: "كريم فؤاد", role: "محاسب", dept: "المالية", createdAt: "2026-04-28T09:00:00.000Z" },
 ];
+
+function matchesDateRange(createdAt: string, from: string, to: string) {
+  const ts = new Date(createdAt).getTime();
+  if (from && ts < new Date(from).setHours(0, 0, 0, 0)) return false;
+  if (to && ts > new Date(to).setHours(23, 59, 59, 999)) return false;
+  return true;
+}
 
 function Employees() {
   const [rows, setRows] = useState(initial);
-  const [form, setForm] = useState<Employee>({ name: "", role: "", dept: "" });
+  const [form, setForm] = useState({ name: "", role: "", dept: "" });
   const { company } = useCompany();
   const canEdit = can(company.role, "edit");
+
+  const [query, setQuery] = useState("");
+  const [deptFilter, setDeptFilter] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [dateSort, setDateSort] = useState<"newest" | "oldest">("newest");
+
+  const depts = useMemo(() => Array.from(new Set(rows.map((r) => r.dept).filter(Boolean))), [rows]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = rows.filter((r) => {
+      if (deptFilter !== "all" && r.dept !== deptFilter) return false;
+      if (
+        q &&
+        !(
+          r.name.toLowerCase().includes(q) ||
+          r.role.toLowerCase().includes(q) ||
+          r.dept.toLowerCase().includes(q)
+        )
+      )
+        return false;
+      if (!matchesDateRange(r.createdAt, fromDate, toDate)) return false;
+      return true;
+    });
+    return [...list].sort((a, b) => {
+      const diff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return dateSort === "newest" ? diff : -diff;
+    });
+  }, [rows, query, deptFilter, fromDate, toDate, dateSort]);
+
+  const hasActiveFilters = query || deptFilter !== "all" || fromDate || toDate || dateSort !== "newest";
+  const clearFilters = () => {
+    setQuery("");
+    setDeptFilter("all");
+    setFromDate("");
+    setToDate("");
+    setDateSort("newest");
+  };
+
 
   return (
     <div>
