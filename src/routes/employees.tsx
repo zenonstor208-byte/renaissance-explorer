@@ -91,6 +91,68 @@ function Employees() {
   return (
     <div>
       <PageHeader title="الموظفون" subtitle="إدارة فريق العمل بشكل سريع ومباشر." />
+
+      <div className="mb-5 rounded-2xl border border-border/60 bg-background/60 p-4 backdrop-blur-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+          <div className="flex-1 space-y-2">
+            <Label htmlFor="e-search">البحث</Label>
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="e-search"
+                placeholder="الاسم، المسمى الوظيفي أو القسم"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pr-9"
+              />
+            </div>
+          </div>
+          <div className="w-full space-y-2 lg:w-44">
+            <Label htmlFor="e-dept">القسم</Label>
+            <Select value={deptFilter} onValueChange={setDeptFilter}>
+              <SelectTrigger id="e-dept">
+                <SelectValue placeholder="الكل" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                {depts.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:w-72">
+            <div className="space-y-2">
+              <Label htmlFor="e-from">من</Label>
+              <Input id="e-from" type="date" dir="ltr" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="e-to">إلى</Label>
+              <Input id="e-to" type="date" dir="ltr" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="w-full space-y-2 lg:w-44">
+            <Label htmlFor="e-sort">الترتيب حسب التاريخ</Label>
+            <Select value={dateSort} onValueChange={(v) => setDateSort(v as "newest" | "oldest")}>
+              <SelectTrigger id="e-sort">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">الأحدث أولاً</SelectItem>
+                <SelectItem value="oldest">الأقدم أولاً</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {hasActiveFilters ? (
+            <Button variant="ghost" size="sm" className="mb-0.5" onClick={clearFilters}>
+              مسح التصفية
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-3">
         <div className={`glass overflow-hidden rounded-2xl ${canEdit ? "lg:col-span-2" : "lg:col-span-3"}`}>
           <table className="w-full text-right text-sm">
@@ -99,19 +161,31 @@ function Employees() {
                 <th className="p-3 font-medium">الاسم</th>
                 <th className="p-3 font-medium">المسمى</th>
                 <th className="p-3 font-medium">القسم</th>
+                <th className="p-3 font-medium">تاريخ الإضافة</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
+              {filtered.map((r, i) => (
                 <tr key={`${r.name}-${i}`} className="border-t border-border/60">
                   <td className="p-3 font-medium">{r.name}</td>
                   <td className="p-3 text-muted-foreground">{r.role}</td>
                   <td className="p-3 text-muted-foreground">{r.dept}</td>
+                  <td className="p-3 text-muted-foreground">
+                    {new Date(r.createdAt).toLocaleDateString("ar-SY")}
+                  </td>
                 </tr>
               ))}
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-6 text-center text-muted-foreground">
+                    لا توجد نتائج مطابقة
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
+
 
         {canEdit ? (
         <form
