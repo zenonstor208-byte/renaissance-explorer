@@ -40,7 +40,7 @@ import {
 } from "@/lib/data";
 import { can, useCompany } from "@/lib/company";
 
-export const Route = createFileRoute("/projects")({
+export const Route = createFileRoute("/_authenticated/projects")({
   head: () => ({
     meta: [
       { title: "المشاريع | Renaissance Lite Manager" },

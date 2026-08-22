@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useMe } from "@/lib/session";
 
 export type ProjectStatus = "قيد التنفيذ" | "قيد المراجعة" | "مكتمل";
 
@@ -25,90 +27,117 @@ export type Client = {
 
 export const PROJECT_STATUSES: ProjectStatus[] = ["قيد التنفيذ", "قيد المراجعة", "مكتمل"];
 
-const DEFAULT_PROJECTS: Project[] = [
-  { id: "p1", name: "منصة الأفق", client: "شركة الأفق", status: "قيد التنفيذ", progress: 62, createdAt: "2026-01-15T10:00:00.000Z" },
-  { id: "p2", name: "تطبيق نهضة", client: "مجموعة نهضة", status: "قيد التنفيذ", progress: 35, createdAt: "2026-02-03T09:30:00.000Z" },
-  { id: "p3", name: "هوية دار المعمار", client: "دار المعمار", status: "قيد المراجعة", progress: 88, createdAt: "2026-03-10T14:20:00.000Z" },
-  { id: "p4", name: "موقع تِك لاين", client: "تِك لاين", status: "مكتمل", progress: 100, createdAt: "2026-04-22T11:00:00.000Z" },
-  { id: "p5", name: "لوحة تقارير", client: "شركة الأفق", status: "مكتمل", progress: 100, createdAt: "2026-05-18T08:45:00.000Z" },
-];
+export const newId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-const DEFAULT_CLIENTS: Client[] = [
-  {
-    id: "c1",
-    name: "شركة الأفق",
-    contact: "نور العلي",
-    email: "nour@ofoq.com",
-    phone: "+963 900 111 222",
-    deals: 6,
-    active: true,
-    projects: ["منصة الأفق", "لوحة تقارير"],
-    createdAt: "2026-01-10T08:00:00.000Z",
-  },
-  {
-    id: "c2",
-    name: "مجموعة نهضة",
-    contact: "خالد سمير",
-    email: "khaled@nahda.co",
-    phone: "+963 900 333 444",
-    deals: 3,
-    active: true,
-    projects: ["تطبيق نهضة"],
-    createdAt: "2026-02-14T12:00:00.000Z",
-  },
-  {
-    id: "c3",
-    name: "دار المعمار",
-    contact: "رنا يوسف",
-    email: "rana@dar.sa",
-    phone: "+963 900 555 666",
-    deals: 2,
-    active: false,
-    projects: ["هوية دار المعمار"],
-    createdAt: "2026-03-22T15:30:00.000Z",
-  },
-  {
-    id: "c4",
-    name: "تِك لاين",
-    contact: "فادي جابر",
-    email: "fadi@techline.io",
-    phone: "+963 900 777 888",
-    deals: 9,
-    active: true,
-    projects: ["موقع تِك لاين"],
-    createdAt: "2026-04-05T10:15:00.000Z",
-  },
-];
+type Updater<T> = T[] | ((prev: T[]) => T[]);
 
-function withCreatedAt<T extends { createdAt?: string }>(item: T): T & { createdAt: string } {
-  return { ...item, createdAt: item.createdAt ?? new Date().toISOString() };
-}
-
-function useStored<T extends { createdAt?: string }>(key: string, fallback: T[]) {
-  const [items, setItems] = useState<T[]>(fallback);
-  const [ready, setReady] = useState(false);
+function useSynced<T extends { id: string }>(
+  table: "projects" | "clients",
+  companyId: string | undefined,
+  fromRow: (row: Record<string, unknown>) => T,
+  toRow: (item: T) => Record<string, unknown>,
+) {
+  const [items, setItems] = useState<T[]>([]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw) as T[];
-        setItems(parsed.map(withCreatedAt));
-      }
-    } catch {
-      /* ignore */
+    let cancelled = false;
+    if (!companyId) {
+      setItems([]);
+      return;
     }
-    setReady(true);
-  }, [key]);
+    void supabase
+      .from(table)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (!cancelled && data) setItems(data.map((r) => fromRow(r as Record<string, unknown>)));
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table, companyId]);
 
-  useEffect(() => {
-    if (ready) localStorage.setItem(key, JSON.stringify(items));
-  }, [key, items, ready]);
+  const update = useCallback(
+    (updater: Updater<T>) => {
+      setItems((prev) => {
+        const next = typeof updater === "function" ? (updater as (p: T[]) => T[])(prev) : updater;
+        if (!companyId) return next;
 
-  return [items, setItems] as const;
+        const prevMap = new Map(prev.map((i) => [i.id, i]));
+        const nextMap = new Map(next.map((i) => [i.id, i]));
+
+        for (const item of next) {
+          const before = prevMap.get(item.id);
+          if (!before) {
+            void supabase.from(table).insert({ id: item.id, company_id: companyId, ...toRow(item) } as never);
+          } else if (JSON.stringify(toRow(before)) !== JSON.stringify(toRow(item))) {
+            void supabase.from(table).update(toRow(item) as never).eq("id", item.id);
+          }
+        }
+        for (const item of prev) {
+          if (!nextMap.has(item.id)) void supabase.from(table).delete().eq("id", item.id);
+        }
+        return next;
+      });
+    },
+    [table, companyId, toRow],
+  );
+
+  return [items, update] as const;
 }
 
-export const newId = () => Math.random().toString(36).slice(2, 10);
+export function useProjects() {
+  const { data: me } = useMe();
+  return useSynced<Project>(
+    "projects",
+    me?.profile?.company_id,
+    (r) => ({
+      id: String(r['id']),
+      name: String(r['name'] ?? ""),
+      client: String(r['client'] ?? ""),
+      status: (r['status'] as ProjectStatus) ?? "قيد التنفيذ",
+      progress: Number(r['progress'] ?? 0),
+      createdAt: String(r['created_at'] ?? new Date().toISOString()),
+    }),
+    (p) => ({ name: p.name, client: p.client, status: p.status, progress: p.progress }),
+  );
+}
 
-export const useProjects = () => useStored<Project>("rlm-projects", DEFAULT_PROJECTS);
-export const useClients = () => useStored<Client>("rlm-clients", DEFAULT_CLIENTS);
+export function useClients() {
+  const { data: me } = useMe();
+  const [projects] = useProjects();
+  const [clients, setClients] = useSynced<Client>(
+    "clients",
+    me?.profile?.company_id,
+    (r) => ({
+      id: String(r['id']),
+      name: String(r['name'] ?? ""),
+      contact: String(r['contact'] ?? ""),
+      email: String(r['email'] ?? ""),
+      phone: String(r['phone'] ?? ""),
+      deals: Number(r['deals'] ?? 0),
+      active: Boolean(r['active']),
+      projects: [],
+      createdAt: String(r['created_at'] ?? new Date().toISOString()),
+    }),
+    (c) => ({
+      name: c.name,
+      contact: c.contact,
+      email: c.email,
+      phone: c.phone,
+      deals: c.deals,
+      active: c.active,
+    }),
+  );
+
+  const withProjects = clients.map((c) => ({
+    ...c,
+    projects: projects.filter((p) => p.client === c.name).map((p) => p.name),
+  }));
+
+  return [withProjects, setClients] as const;
+}

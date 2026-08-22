@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { newId, useClients, useProjects, type Client } from "@/lib/data";
 import { can, useCompany } from "@/lib/company";
 
-export const Route = createFileRoute("/clients")({
+export const Route = createFileRoute("/_authenticated/clients")({
   head: () => ({
     meta: [
       { title: "الزبائن | Renaissance Lite Manager" },

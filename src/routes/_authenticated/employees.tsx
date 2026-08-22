@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { can, useCompany } from "@/lib/company";
 
-export const Route = createFileRoute("/employees")({
+export const Route = createFileRoute("/_authenticated/employees")({
   head: () => ({
     meta: [
       { title: "الموظفون | Renaissance Lite Manager" },
